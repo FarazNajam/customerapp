@@ -18,7 +18,6 @@ variable "vnets" {
   type = map(object({
     name = string
     address_space = list(string)
-    dns_servers = list(string)
     rg_key = string
   }))
 }
@@ -27,6 +26,13 @@ variable "nsgs" {
   type = map(object({
     name = string
     rg_key = string
+  }))
+}
+
+variable "nsg_associations" {
+  type = map(object({
+    subnet_key = string
+    nsg_key    = string
   }))
 }
 
@@ -143,18 +149,6 @@ variable "key_vaults" {
 }
 
 ########################################
-# KEY VAULT SECRETS
-########################################
-
-variable "key_vault_secrets" {
-  type = map(object({
-    name = string
-    sqlserver_key = string
-    key_vault_key = string
-  }))
-}
-
-########################################
 # APP CONFIG VARIABLES
 ########################################
 
@@ -165,36 +159,7 @@ variable "app_configs" {
     local_auth_enabled         = bool
     public_network_access      = string
     purge_protection_enabled   = bool
-    soft_delete_retention_days = number
     rg_key = string
-  }))
-}
-
-########################################
-# VIRTUAL MACHINE VARIABLES
-########################################
-
-variable "nics" {
-  type = map(object({
-    network_interface_name = string
-    ip_configuration = object({
-      name                = string
-      subnet_key            = string
-      private_ip_address_allocation = string
-    })
-    rg_key = string
-  }))
-}
-
-variable "vms" {
-  type = map(object({
-    name = string
-    nic_key = string
-    rg_key = string
-    vm_size = string
-    computer_name = string
-    admin_username = string
-    admin_password = string
   }))
 }
 
@@ -208,6 +173,7 @@ variable "private_endpoints" {
     rg_key = string
     subnet_key = string
     resource_key = string
+    subresource_names = list(string)
   }))
 }
 
