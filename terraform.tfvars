@@ -29,6 +29,7 @@ app_services = {
     app_service_plan_name = "p-auea-customerapp-asp"
     app_service_name      = "p-auea-customerapp-api"
     rg_key                = "customerapp"
+    subnet_key            = "app_service_integration_subnet"
   }
 }
 
@@ -61,6 +62,11 @@ nsgs = {
    name   = "p-auea-customerapp-nsg-appsvc"
    rg_key = "customerapp"
  }
+
+  pep_subnet_nsg = {
+    name   = "p-auea-customerapp-nsg-pep"
+    rg_key = "customerapp"
+  }
 }
 
 nsg_associations = {
@@ -78,7 +84,7 @@ nsg_associations = {
 subnets = {
   app_service_integration_subnet = {
     name = "p-auea-customerapp-snet-appsvc"
-    address_prefixes = ["10.2.0.0/24"]
+    address_prefixes = ["10.0.0.0/24"]
     vnet_key = "customerapp"
     rg_key = "customerapp"
 
@@ -90,7 +96,7 @@ subnets = {
   
   pep_subnet = {
     name = "p-auea-customerapp-snet-pep"
-    address_prefixes = ["10.3.0.0/24"]
+    address_prefixes = ["10.0.1.0/24"]
     vnet_key = "customerapp"
     rg_key = "customerapp"
   }
@@ -114,7 +120,7 @@ sqldatabases = {
   db_customerapp = {
     name = "p-auea-customerapp-db"
     sku_name = "basic"
-    server_key = "customerapp"
+    server_key = "sqlserver_customerapp"
   }
 }
 
@@ -179,36 +185,9 @@ app_configs = {
   }
 }
 
-private_endpoints= {
-  kv_customerapp = {
-    name = "p-auea-customerapp-kv-pep"
-    private_service_connection = {
-      name = "internal"
-      is_manual_connection = false
-    }
-    rg_key = "customerapp"
-    subnet_key = "pep_subnet"
-    resource_key = "kv_customerapp"
-    subresource_names = ["vault"]
-  }
-
-    db_customerapp = {
-    name = "p-auea-customerapp-db-pep"
-    private_service_connection = {
-      name = "internal"
-      is_manual_connection = false
-    }
-    rg_key = "customerapp"
-    subnet_key = "pep_subnet"
-    resource_key = "sqlserver_customerapp"
-    subresource_names = ["sqlServer"]
-
-  }
-}
-
 service_bus = {
   customerapp = {
-    name = "p-auea-customerapp-sb"
+    name = "p-auea-customerapp-servicebus"
     sku = "Basic"
     rg_key = "customerapp"
   }

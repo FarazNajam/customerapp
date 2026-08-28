@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>CustomerApp</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .subtitle {
+            color: #666;
+        }
+
+        button {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #0067b8;
+            color: white;
+            font-size: 15px;
+        }
+
+        button:hover {
+            background: #005a9e;
+        }
+
+        #status {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .form {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        input {
+            padding: 10px;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            width: 250px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="container">
+
+    <h1>CustomerApp</h1>
+
+    <p class="subtitle">
+        Azure Cloud Infrastructure Test Application
+    </p>
+
+
+    <!-- Customer list -->
+
+    <button onclick="loadCustomers()">
+        Load Customers
+    </button>
+
+    <div id="status"></div>
+
+    <table>
+
+        <thead>
+
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+            </tr>
+
+        </thead>
+
+        <tbody id="customers">
+
+        </tbody>
+
+    </table>
+
+
+    <!-- Add customer -->
+
+    <div class="form">
+
+        <h2>Add Customer</h2>
+
+        <input
+            type="text"
+            id="name"
+            placeholder="Customer name"
+        >
+
+        <input
+            type="email"
+            id="email"
+            placeholder="Customer email"
+        >
+
+        <button onclick="createCustomer()">
+            Add Customer
+        </button>
+
+    </div>
+
+</div>
+
+
+<script>
+
+const API_URL = "{{ api_url }}";
+
+
+async function loadCustomers() {
+
+    const status =
+        document.getElementById("status");
+
+    const table =
+        document.getElementById("customers");
+
+    status.innerText = "Loading customers...";
+
+    table.innerHTML = "";
+
+
+    try {
+
+        const response =
+            await fetch(`${API_URL}/customers`);
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                `API returned HTTP ${response.status}`
+            );
+
+        }
+
+
+        const customers =
+            await response.json();
+
+
+        customers.forEach(customer => {
+
+            const row =
+                document.createElement("tr");
+
+
+            row.innerHTML = `
+                <td>${customer.id}</td>
+                <td>${customer.name}</td>
+                <td>${customer.email}</td>
+            `;
+
+
+            table.appendChild(row);
+
+        });
+
+
+        status.innerText =
+            `Loaded ${customers.length} customers.`;
+
+    }
+
+    catch (error) {
+
+        status.innerText =
+            `Error: ${error.message}`;
+
+    }
+
+}
+
+
+async function createCustomer() {
+
+    const name =
+        document.getElementById("name").value;
+
+    const email =
+        document.getElementById("email").value;
+
+
+    if (!name || !email) {
+
+        alert("Please enter a name and email.");
+
+        return;
+
+    }
+
+
+    try {
+
+        const response =
+            await fetch(`${API_URL}/customers`, {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    name: name,
+                    email: email
+                })
+
+            });
+
+
+        const result =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                result.message || result.error
+            );
+
+        }
+
+
+        alert("Customer created successfully.");
+
+
+        document.getElementById("name").value = "";
+        document.getElementById("email").value = "";
+
+
+        loadCustomers();
+
+    }
+
+    catch (error) {
+
+        alert(`Error: ${error.message}`);
+
+    }
+
+}
+
+</script>
+
+</body>
+
+</html>

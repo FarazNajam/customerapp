@@ -91,11 +91,32 @@ module "app_config" {
   app_configs = var.app_configs
 }
 
-module "private_endpoints" {
-  source   = "../enterprise-azure-terraform-modules/modules/private_endpoint"
-  rg_name  = module.rg.rg_name
-  location = module.rg.location
-  private_endpoints = var.private_endpoints
+resource "azurerm_private_endpoint" "key_vault" {
+  name                = "p-auea-customerapp-kv-pep"
+  location            = module.rg.location["customerapp"]
+  resource_group_name = module.rg.rg_name["customerapp"]
+  subnet_id = module.network.subnet_id["pep_subnet"]
+
+  private_service_connection {
+    name                           = "internal"
+    private_connection_resource_id = module.key_vault.key_vault_ids["kv_customerapp"]
+    is_manual_connection           = false
+    subresource_names              = ["vault"]
+  }
+}
+
+resource "azurerm_private_endpoint" "sql_server" {
+  name                = "p-auea-customerapp-db-pep"
+  location            = module.rg.location["customerapp"]
+  resource_group_name = module.rg.rg_name["customerapp"]
+  subnet_id = module.network.subnet_id["pep_subnet"]
+
+  private_service_connection {
+    name                           = "internal"
+    private_connection_resource_id = module.db.sqlserver_ids["sqlserver_customerapp"]
+    is_manual_connection           = false
+    subresource_names              = ["sqlServer"]
+  }
 }
 
 module "service_bus" {

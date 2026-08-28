@@ -163,20 +163,6 @@ variable "app_configs" {
   }))
 }
 
-variable "private_endpoints" {
-  type = map(object({
-    name = string
-    private_service_connection = object({
-      name                = string
-      is_manual_connection = bool
-    })
-    rg_key = string
-    subnet_key = string
-    resource_key = string
-    subresource_names = list(string)
-  }))
-}
-
 variable "service_bus" {
   type = map(object({
     name = string
