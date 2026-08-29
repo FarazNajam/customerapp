@@ -18,18 +18,32 @@ resource_groups = {
 ########################################
 
 app_services = {
-  frontend = {
-    app_service_plan_name = "p-auea-customerapp-asp"
-    app_service_name      = "p-auea-customerapp-frontend"
-    rg_key                = "customerapp"
-    subnet_key            = "app_service_integration_subnet"
-  }
 
   api = {
-    app_service_plan_name = "p-auea-customerapp-asp"
     app_service_name      = "p-auea-customerapp-api"
+    app_service_plan_name = "p-auea-customerapp-asp"
     rg_key                = "customerapp"
     subnet_key            = "app_service_integration_subnet"
+    startup_command = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
+
+    app_settings = {
+      DB_NAME     = "p-auea-customerapp-db"
+      DB_SERVER   = "p-auea-customerapp-sql.database.windows.net"
+      DB_USERNAME = "sqladmin"
+      DB_PASSWORD = "ReplaceWithSecurePassword123"
+    }
+  }
+
+  frontend = {
+    app_service_name      = "p-auea-customerapp-frontend"
+    app_service_plan_name = "p-auea-customerapp-asp"
+    rg_key                = "customerapp"
+    subnet_key            = "app_service_integration_subnet"
+    startup_command = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
+
+    app_settings = {
+      API_URL = "https://p-auea-customerapp-api.azurewebsites.net"
+    }
   }
 }
 

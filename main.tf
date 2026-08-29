@@ -91,33 +91,33 @@ module "app_config" {
   app_configs = var.app_configs
 }
 
-resource "azurerm_private_endpoint" "key_vault" {
-  name                = "p-auea-customerapp-kv-pep"
-  location            = module.rg.location["customerapp"]
-  resource_group_name = module.rg.rg_name["customerapp"]
-  subnet_id = module.network.subnet_id["pep_subnet"]
+#resource "azurerm_private_endpoint" "key_vault" {
+#  name                = "p-auea-customerapp-kv-pep"
+#  location            = module.rg.location["customerapp"]
+#  resource_group_name = module.rg.rg_name["customerapp"]
+#  subnet_id = module.network.subnet_id["pep_subnet"]
 
-  private_service_connection {
-    name                           = "internal"
-    private_connection_resource_id = module.key_vault.key_vault_ids["kv_customerapp"]
-    is_manual_connection           = false
-    subresource_names              = ["vault"]
-  }
-}
+#  private_service_connection {
+#    name                           = "internal"
+#    private_connection_resource_id = module.key_vault.key_vault_ids["kv_customerapp"]
+#    is_manual_connection           = false
+#    subresource_names              = ["vault"]
+#  }
+#}
 
-resource "azurerm_private_endpoint" "sql_server" {
-  name                = "p-auea-customerapp-db-pep"
-  location            = module.rg.location["customerapp"]
-  resource_group_name = module.rg.rg_name["customerapp"]
-  subnet_id = module.network.subnet_id["pep_subnet"]
+#resource "azurerm_private_endpoint" "sql_server" {
+#  name                = "p-auea-customerapp-db-pep"
+#  location            = module.rg.location["customerapp"]
+#  resource_group_name = module.rg.rg_name["customerapp"]
+#  subnet_id = module.network.subnet_id["pep_subnet"]
 
-  private_service_connection {
-    name                           = "internal"
-    private_connection_resource_id = module.db.sqlserver_ids["sqlserver_customerapp"]
-    is_manual_connection           = false
-    subresource_names              = ["sqlServer"]
-  }
-}
+#  private_service_connection {
+#    name                           = "internal"
+#    private_connection_resource_id = module.db.sqlserver_ids["sqlserver_customerapp"]
+#    is_manual_connection           = false
+#    subresource_names              = ["sqlServer"]
+#  }
+#}
 
 module "service_bus" {
   source   = "../enterprise-azure-terraform-modules/modules/service_bus"
