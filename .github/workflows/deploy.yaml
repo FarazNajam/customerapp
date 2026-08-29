@@ -7,6 +7,11 @@ on:
 
   workflow_dispatch:
 
+# Required for Azure OIDC authentication
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
 
   # ==========================================================
@@ -26,7 +31,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set API build settings
+      - name: Enable Oryx build
         run: |
           az webapp config appsettings set \
             --resource-group p-auea-customerapp-rg \
@@ -57,7 +62,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Set Frontend build settings
+      - name: Enable Oryx build
         run: |
           az webapp config appsettings set \
             --resource-group p-auea-customerapp-rg \
