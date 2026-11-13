@@ -56,6 +56,7 @@ module "db" {
   location = module.rg.location
   sqlservers = var.sqlservers
   sqldatabases = var.sqldatabases
+  tenant_id = data.azurerm_client_config.current.tenant_id
 }
 
 #module "frontdoor" {

@@ -122,10 +122,10 @@ subnets = {
 
 sqlservers = {
   sqlserver_customerapp = {
-    name = "p-auea-customerapp-sql"
+    name = "p-auea-customerapp-sqlserver"
     version = "12.0"
-    admin_login= "sqladmin"
-    admin_password = "ReplaceWithSecurePassword123"
+    entra_admin_login = "SG-AzureSQL-Administrators"
+    entra_admin_object_id = "659e1d68-c4a5-49c8-834a-b38f376ddf5a"
     rg_key = "customerapp"
   }
 }
