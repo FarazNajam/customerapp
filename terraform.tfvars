@@ -4,14 +4,14 @@
 
 resource_groups = {
   customerapp = {
-    name = "p-auea-customerapp-rg"
-    location  = "Australia East"
+    name     = "p-auea-customerapp-rg"
+    location = "Australia East"
     tags = {
-    environment = "prod"
-    owner       = "cloud-team"
-    deployment  = "terraform"
+      environment = "prod"
+      owner       = "cloud-team"
+      deployment  = "terraform"
     }
-  }  
+  }
 }
 ########################################
 # APP SERVICE
@@ -24,13 +24,14 @@ app_services = {
     app_service_plan_name = "p-auea-customerapp-asp"
     rg_key                = "customerapp"
     subnet_key            = "app_service_integration_subnet"
+
     startup_command = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
 
+    enable_system_assigned_identity = true
+
     app_settings = {
-      DB_NAME     = "p-auea-customerapp-db"
-      DB_SERVER   = "p-auea-customerapp-sql.database.windows.net"
-      DB_USERNAME = "sqladmin"
-      DB_PASSWORD = "ReplaceWithSecurePassword123"
+      DB_NAME   = "p-auea-customerapp-db"
+      DB_SERVER = "p-auea-customerapp-sql.database.windows.net"
     }
   }
 
@@ -39,7 +40,7 @@ app_services = {
     app_service_plan_name = "p-auea-customerapp-asp"
     rg_key                = "customerapp"
     subnet_key            = "app_service_integration_subnet"
-    startup_command = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
+    startup_command       = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
 
     app_settings = {
       API_URL = "https://p-auea-customerapp-api.azurewebsites.net"
@@ -50,7 +51,7 @@ app_services = {
 app_services_vnet_integration = {
   frontend = {
     appservice_key = "frontend"
-    subnet_key  = "app_service_integration_subnet"
+    subnet_key     = "app_service_integration_subnet"
   }
 
   api = {
@@ -64,18 +65,18 @@ app_services_vnet_integration = {
 ########################################
 
 vnets = {
-    customerapp = {
-    name = "p-auea-customerapp-vnet"
+  customerapp = {
+    name          = "p-auea-customerapp-vnet"
     address_space = ["10.0.0.0/16"]
-    rg_key = "customerapp"
+    rg_key        = "customerapp"
   }
 }
 
 nsgs = {
- app_service_integration_nsg = {
-   name   = "p-auea-customerapp-nsg-appsvc"
-   rg_key = "customerapp"
- }
+  app_service_integration_nsg = {
+    name   = "p-auea-customerapp-nsg-appsvc"
+    rg_key = "customerapp"
+  }
 
   pep_subnet_nsg = {
     name   = "p-auea-customerapp-nsg-pep"
@@ -97,22 +98,22 @@ nsg_associations = {
 
 subnets = {
   app_service_integration_subnet = {
-    name = "p-auea-customerapp-snet-appsvc"
+    name             = "p-auea-customerapp-snet-appsvc"
     address_prefixes = ["10.0.0.0/24"]
-    vnet_key = "customerapp"
-    rg_key = "customerapp"
+    vnet_key         = "customerapp"
+    rg_key           = "customerapp"
 
     delegation = {
-     name    = "webapp"
-     service = "Microsoft.Web/serverFarms"
+      name    = "webapp"
+      service = "Microsoft.Web/serverFarms"
     }
   }
-  
+
   pep_subnet = {
-    name = "p-auea-customerapp-snet-pep"
+    name             = "p-auea-customerapp-snet-pep"
     address_prefixes = ["10.0.1.0/24"]
-    vnet_key = "customerapp"
-    rg_key = "customerapp"
+    vnet_key         = "customerapp"
+    rg_key           = "customerapp"
   }
 }
 
@@ -122,18 +123,18 @@ subnets = {
 
 sqlservers = {
   sqlserver_customerapp = {
-    name = "p-auea-customerapp-sqlserver"
-    version = "12.0"
-    entra_admin_login = "SG-AzureSQL-Administrators"
+    name                  = "p-auea-customerapp-sqlserver"
+    version               = "12.0"
+    entra_admin_login     = "SG-AzureSQL-Administrators"
     entra_admin_object_id = "659e1d68-c4a5-49c8-834a-b38f376ddf5a"
-    rg_key = "customerapp"
+    rg_key                = "customerapp"
   }
 }
 
 sqldatabases = {
   db_customerapp = {
-    name = "p-auea-customerapp-db"
-    sku_name = "basic"
+    name       = "p-auea-customerapp-db"
+    sku_name   = "basic"
     server_key = "sqlserver_customerapp"
   }
 }
@@ -161,10 +162,10 @@ sqldatabases = {
 
 storage_accounts = {
   customerapp = {
-    name = "paueacustomerappsa"
-    account_tier = "Standard"
+    name                     = "paueacustomerappsa"
+    account_tier             = "Standard"
     account_replication_type = "LRS"
-    rg_key = "customerapp"
+    rg_key                   = "customerapp"
   }
 }
 
@@ -174,13 +175,13 @@ storage_accounts = {
 
 key_vaults = {
   kv_customerapp = {
-    name = "p-auea-customerapp-kv"
+    name                        = "p-auea-customerapp-kv"
     enabled_for_disk_encryption = true
-    soft_delete_retention_days = 7
-    purge_protection_enabled = false
-    sku_name = "standard"
-    rbac_authorization_enabled = true
-    rg_key = "customerapp"
+    soft_delete_retention_days  = 7
+    purge_protection_enabled    = false
+    sku_name                    = "standard"
+    rbac_authorization_enabled  = true
+    rg_key                      = "customerapp"
   }
 }
 
@@ -190,19 +191,24 @@ key_vaults = {
 
 app_configs = {
   customerapp = {
-    name = "p-auea-customerapp-ac"
-    sku = "free"
-    local_auth_enabled = false
-    public_network_access = "enabled"
+    name                     = "p-auea-customerapp-ac"
+    sku                      = "free"
+    local_auth_enabled       = false
+    public_network_access    = "enabled"
     purge_protection_enabled = false
-    rg_key = "customerapp"
+    rg_key                   = "customerapp"
   }
 }
 
 service_bus = {
   customerapp = {
-    name = "p-auea-customerapp-servicebus"
-    sku = "Basic"
+    name   = "p-auea-customerapp-servicebus"
+    sku    = "Basic"
     rg_key = "customerapp"
   }
 }
+
+###################################
+
+api_needs_key_vault_secrets = false
+api_needs_storage_read      = false
