@@ -5,13 +5,15 @@ $ErrorActionPreference = "Stop"
 $SqlServer   = "p-auea-customerapp-sqlserver.database.windows.net"
 $Database    = "p-auea-customerapp-db"
 $AppIdentity = "p-auea-customerapp-api"
+$TenantId    = "84dcd724-5abd-41f1-bb78-f5d9dc799506"
 
 Write-Host "`n=== CustomerApp SQL Identity Configuration ===" -ForegroundColor Cyan
 
-# 1. Confirm Azure CLI authentication
-Write-Host "`nObtaining Azure SQL access token..." -ForegroundColor Cyan
+# --------------------------------------------------
+# 1. Authenticate to Azure SQL using Azure CLI
+# --------------------------------------------------
 
-$TenantId = "84dcd724-5abd-41f1-bb78-f5d9dc799506"
+Write-Host "`nObtaining Azure SQL access token..." -ForegroundColor Cyan
 
 $accessToken = az account get-access-token `
     --resource https://database.windows.net/ `
@@ -44,8 +46,28 @@ if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($accessToken)) {
 
 Write-Host "Azure SQL access token obtained successfully." -ForegroundColor Green
 
-# 4. Connect to the target database and create the user
-Write-Host "`nConnecting to Azure SQL..."
+# --------------------------------------------------
+# 2. Retrieve API Managed Identity Principal ID
+# --------------------------------------------------
+
+Write-Host "`nRetrieving API Managed Identity Principal ID..." -ForegroundColor Cyan
+
+$principalId = terraform output -raw api_managed_identity_principal_id
+
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($principalId)) {
+    throw "Could not retrieve API Managed Identity Principal ID from Terraform."
+}
+
+$principalId = $principalId.Trim()
+
+Write-Host "API identity: $AppIdentity" -ForegroundColor Green
+Write-Host "Principal ID: $principalId" -ForegroundColor Green
+
+# --------------------------------------------------
+# 3. Construct SQL script
+# --------------------------------------------------
+
+Write-Host "`nPreparing SQL database permissions..." -ForegroundColor Cyan
 
 $query = @"
 IF DATABASE_PRINCIPAL_ID(N'$AppIdentity') IS NULL
@@ -53,6 +75,7 @@ BEGIN
     CREATE USER [$AppIdentity]
     FROM EXTERNAL PROVIDER
     WITH OBJECT_ID = '$principalId';
+
     PRINT 'Database user created.';
 END
 ELSE
@@ -70,7 +93,10 @@ IF NOT EXISTS (
     WHERE rolep.name = 'db_datareader'
       AND memberp.name = '$AppIdentity'
 )
+BEGIN
     ALTER ROLE db_datareader ADD MEMBER [$AppIdentity];
+    PRINT 'db_datareader assigned.';
+END;
 
 IF NOT EXISTS (
     SELECT 1
@@ -82,15 +108,21 @@ IF NOT EXISTS (
     WHERE rolep.name = 'db_datawriter'
       AND memberp.name = '$AppIdentity'
 )
+BEGIN
     ALTER ROLE db_datawriter ADD MEMBER [$AppIdentity];
+    PRINT 'db_datawriter assigned.';
+END;
 
 PRINT 'Database permissions configured.';
 "@
 
-Write-Host "`nApp identity: [$AppIdentity]"
-Write-Host "Principal ID: [$principalId]"
-Write-Host "`nSQL query:"
-Write-Host $query
+Write-Host "`nSQL query prepared successfully." -ForegroundColor Green
+
+# --------------------------------------------------
+# 4. Execute SQL script
+# --------------------------------------------------
+
+Write-Host "`nConnecting to Azure SQL..." -ForegroundColor Cyan
 
 Invoke-Sqlcmd `
     -ServerInstance $SqlServer `
@@ -99,8 +131,13 @@ Invoke-Sqlcmd `
     -Query $query `
     -ErrorAction Stop
 
-# 5. Verify the database user and permissions
-Write-Host "`nVerifying database permissions..."
+Write-Host "`nSQL configuration executed." -ForegroundColor Green
+
+# --------------------------------------------------
+# 5. Verify database user and permissions
+# --------------------------------------------------
+
+Write-Host "`nVerifying database permissions..." -ForegroundColor Cyan
 
 $verifyQuery = @"
 SELECT
@@ -116,15 +153,30 @@ WHERE dp.name = '$AppIdentity'
 ORDER BY rp.name;
 "@
 
-Invoke-Sqlcmd `
+$verification = Invoke-Sqlcmd `
     -ServerInstance $SqlServer `
     -Database $Database `
     -AccessToken $accessToken `
     -Query $verifyQuery `
-    -ErrorAction Stop |
-    Format-Table -AutoSize
+    -ErrorAction Stop
 
-Write-Host "`nCustomerApp SQL identity configuration completed." -ForegroundColor Green
+if (-not $verification) {
+    throw "Verification failed: database user was not found."
+}
 
-# Clear the token from this script's variable
+$verification | Format-Table -AutoSize
+
+$roles = @($verification | ForEach-Object { $_.DatabaseRole })
+
+if ($roles -notcontains "db_datareader" -or
+    $roles -notcontains "db_datawriter") {
+    throw "Verification failed: expected database roles are missing."
+}
+
+Write-Host "`nCustomerApp SQL identity configuration completed successfully." -ForegroundColor Green
+
+# --------------------------------------------------
+# 6. Clear access token from memory
+# --------------------------------------------------
+
 $accessToken = $null

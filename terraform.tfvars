@@ -23,7 +23,7 @@ app_services = {
     app_service_name      = "p-auea-customerapp-api"
     app_service_plan_name = "p-auea-customerapp-asp"
     rg_key                = "customerapp"
-    subnet_key            = "app_service_integration_subnet"
+    subnet_key            = "outbound_subnet"
 
     startup_command = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
 
@@ -39,7 +39,7 @@ app_services = {
     app_service_name      = "p-auea-customerapp-frontend"
     app_service_plan_name = "p-auea-customerapp-asp"
     rg_key                = "customerapp"
-    subnet_key            = "app_service_integration_subnet"
+    subnet_key            = "outbound_subnet"
     startup_command       = "gunicorn --bind=0.0.0.0 --timeout 600 app:app"
 
     app_settings = {
@@ -51,12 +51,12 @@ app_services = {
 app_services_vnet_integration = {
   frontend = {
     appservice_key = "frontend"
-    subnet_key     = "app_service_integration_subnet"
+    subnet_key     = "outbound_subnet"
   }
 
   api = {
     appservice_key = "api"
-    subnet_key     = "app_service_integration_subnet"
+    subnet_key     = "outbound_subnet"
   }
 }
 
@@ -86,7 +86,7 @@ nsgs = {
 
 nsg_associations = {
   app_service_integration = {
-    subnet_key = "app_service_integration_subnet"
+    subnet_key = "outbound_subnet"
     nsg_key    = "app_service_integration_nsg"
   }
 
@@ -97,8 +97,8 @@ nsg_associations = {
 }
 
 subnets = {
-  app_service_integration_subnet = {
-    name             = "p-auea-customerapp-snet-appsvc"
+  outbound_subnet = {
+    name             = "p-auea-customerapp-outbound-snet"
     address_prefixes = ["10.0.0.0/24"]
     vnet_key         = "customerapp"
     rg_key           = "customerapp"
@@ -110,7 +110,7 @@ subnets = {
   }
 
   pep_subnet = {
-    name             = "p-auea-customerapp-snet-pep"
+    name             = "p-auea-customerapp-inbound-snet"
     address_prefixes = ["10.0.1.0/24"]
     vnet_key         = "customerapp"
     rg_key           = "customerapp"
