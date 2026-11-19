@@ -1,14 +1,90 @@
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import json
 import os
+import time
 import pyodbc
+
 
 app = Flask(__name__)
 CORS(app)
 
 
+def get_active_fault():
+    """Read the fault injected through App Service settings."""
+
+    operation = os.environ.get("IGAI_FAULT_OPERATION", "").strip()
+
+    if not operation:
+        return None
+
+    try:
+        parameters = json.loads(
+            os.environ.get("IGAI_FAULT_PARAMETERS", "{}")
+        )
+    except json.JSONDecodeError:
+        app.logger.error("Invalid IGAI_FAULT_PARAMETERS setting")
+        return None
+
+    return {
+        "operation": operation,
+        "parameters": parameters,
+    }
+
+
+# Startup failure is deliberately checked during application startup.
+_startup_fault = get_active_fault()
+
+if (
+    _startup_fault
+    and _startup_fault["operation"] == "simulate_startup_failure"
+):
+    raise RuntimeError("IGAI injected an application startup failure.")
+
+
+@app.before_request
+def inject_application_availability_fault():
+    fault = get_active_fault()
+
+    if not fault:
+        return None
+
+    if fault["operation"] == "simulate_app_unavailable":
+        return jsonify({
+            "error": "Service temporarily unavailable"
+        }), 503
+
+    return None
+
+
 def get_connection():
+    fault = get_active_fault()
+
+    if fault:
+        operation = fault["operation"]
+        parameters = fault["parameters"]
+
+        if operation == "simulate_dependency_timeout":
+            timeout = int(parameters.get("timeout_seconds", 30))
+            time.sleep(timeout)
+
+        elif operation == "simulate_database_unavailable":
+            raise ConnectionError(
+                "IGAI: simulated database unavailability."
+            )
+
+        elif operation == "simulate_database_authentication_failure":
+            raise RuntimeError(
+                "IGAI: simulated SQL authentication failure "
+                "(SQL error 18456)."
+            )
+
+        elif operation == "simulate_database_connection_exhaustion":
+            raise ConnectionError(
+                "IGAI: simulated database connection exhaustion."
+            )
+
     server = os.environ["DB_SERVER"]
     database = os.environ["DB_NAME"]
 
@@ -56,11 +132,10 @@ def get_customers():
 
         return jsonify(customers), 200
 
-    except Exception as e:
+    except Exception:
         app.logger.exception("Failed to retrieve customers")
         return jsonify({
-            "error": "Unable to retrieve customers",
-            "details": str(e)
+            "error": "Unable to retrieve customers"
         }), 500
 
 
@@ -70,7 +145,9 @@ def create_customer():
         data = request.get_json()
 
         if not data:
-            return jsonify({"error": "JSON request body required"}), 400
+            return jsonify({
+                "error": "JSON request body required"
+            }), 400
 
         name = data.get("name")
         email = data.get("email")
@@ -98,11 +175,10 @@ def create_customer():
             "email": email
         }), 201
 
-    except Exception as e:
+    except Exception:
         app.logger.exception("Failed to create customer")
         return jsonify({
-            "error": "Unable to create customer",
-            "details": str(e)
+            "error": "Unable to create customer"
         }), 500
 
 
