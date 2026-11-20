@@ -1,29 +1,112 @@
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import json
 import os
+import time
 import pyodbc
 
-app = Flask(__name__)
 
-# Allow the frontend to call the API
+app = Flask(__name__)
 CORS(app)
 
 
+
+def get_active_fault():
+    """Read the fault injected through App Service settings."""
+
+    operation = os.environ.get("IGAI_FAULT_OPERATION", "").strip()
+
+    if not operation:
+        return None
+
+    try:
+        parameters = json.loads(
+            os.environ.get("IGAI_FAULT_PARAMETERS", "{}")
+        )
+    except json.JSONDecodeError:
+        app.logger.error("Invalid IGAI_FAULT_PARAMETERS setting")
+        return None
+
+    fault_id = os.environ.get("IGAI_FAULT_ID", "unknown")
+
+    app.logger.info(
+        "IGAI fault active: fault_id=%s operation=%s",
+        fault_id,
+        operation,
+    )
+
+    return {
+        "fault_id": fault_id,
+        "operation": operation,
+        "parameters": parameters,
+    }
+
+
+
+# Startup failure is deliberately checked during application startup.
+_startup_fault = get_active_fault()
+
+if (
+    _startup_fault
+    and _startup_fault["operation"] == "simulate_startup_failure"
+):
+    raise RuntimeError("IGAI injected an application startup failure.")
+
+
+@app.before_request
+def inject_application_availability_fault():
+    fault = get_active_fault()
+
+    if not fault:
+        return None
+
+    if fault["operation"] == "simulate_app_unavailable":
+        return jsonify({
+            "error": "Service temporarily unavailable"
+        }), 503
+
+    return None
+
+
 def get_connection():
+    fault = get_active_fault()
+
+    if fault:
+        operation = fault["operation"]
+        parameters = fault["parameters"]
+
+        if operation == "simulate_dependency_timeout":
+            timeout = int(parameters.get("timeout_seconds", 30))
+            time.sleep(timeout)
+
+        elif operation == "simulate_database_unavailable":
+            raise ConnectionError(
+                "IGAI: simulated database unavailability."
+            )
+
+        elif operation == "simulate_database_authentication_failure":
+            raise RuntimeError(
+                "IGAI: simulated SQL authentication failure "
+                "(SQL error 18456)."
+            )
+
+        elif operation == "simulate_database_connection_exhaustion":
+            raise ConnectionError(
+                "IGAI: simulated database connection exhaustion."
+            )
+
     server = os.environ["DB_SERVER"]
     database = os.environ["DB_NAME"]
-    username = os.environ["DB_USERNAME"]
-    password = os.environ["DB_PASSWORD"]
 
     connection_string = (
         "DRIVER={ODBC Driver 18 for SQL Server};"
         f"SERVER={server};"
         f"DATABASE={database};"
-        f"UID={username};"
-        f"PWD={password};"
+        "Authentication=ActiveDirectoryMsi;"
         "Encrypt=yes;"
         "TrustServerCertificate=no;"
-        "Connection Timeout=10;"
+        "Connection Timeout=30;"
     )
 
     return pyodbc.connect(connection_string)
@@ -33,93 +116,83 @@ def get_connection():
 def health():
     return jsonify({
         "status": "healthy",
-        "application": "customerapp-api"
-    })
+        "service": "customerapp-api"
+    }), 200
 
 
 @app.route("/customers", methods=["GET"])
 def get_customers():
-
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        with get_connection() as connection:
+            cursor = connection.cursor()
 
-        cursor.execute(
-            "SELECT id, name, email FROM customers ORDER BY id"
-        )
+            cursor.execute("""
+                SELECT id, name, email
+                FROM dbo.customers
+                ORDER BY id
+            """)
 
-        customers = []
+            customers = [
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "email": row.email
+                }
+                for row in cursor.fetchall()
+            ]
 
-        for row in cursor.fetchall():
-            customers.append({
-                "id": row.id,
-                "name": row.name,
-                "email": row.email
-            })
+        return jsonify(customers), 200
 
-        cursor.close()
-        conn.close()
-
-        return jsonify(customers)
-
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Failed to retrieve customers")
         return jsonify({
-            "status": "error",
-            "message": str(e)
+            "error": "Unable to retrieve customers"
         }), 500
 
 
 @app.route("/customers", methods=["POST"])
 def create_customer():
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({
-            "error": "JSON body required"
-        }), 400
-
-    name = data.get("name")
-    email = data.get("email")
-
-    if not name or not email:
-        return jsonify({
-            "error": "name and email are required"
-        }), 400
-
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        data = request.get_json()
 
-        cursor.execute(
-            """
-            INSERT INTO customers (name, email)
-            VALUES (?, ?)
-            """,
-            name,
-            email
-        )
+        if not data:
+            return jsonify({
+                "error": "JSON request body required"
+            }), 400
 
-        conn.commit()
+        name = data.get("name")
+        email = data.get("email")
 
-        cursor.close()
-        conn.close()
+        if not name or not email:
+            return jsonify({
+                "error": "Name and email are required"
+            }), 400
+
+        with get_connection() as connection:
+            cursor = connection.cursor()
+
+            cursor.execute("""
+                INSERT INTO dbo.customers (name, email)
+                OUTPUT INSERTED.id
+                VALUES (?, ?)
+            """, (name, email))
+
+            customer_id = cursor.fetchone()[0]
+            connection.commit()
 
         return jsonify({
-            "message": "Customer created",
+            "id": customer_id,
             "name": name,
             "email": email
         }), 201
 
-    except Exception as e:
+    except Exception:
+        app.logger.exception("Failed to create customer")
         return jsonify({
-            "status": "error",
-            "message": str(e)
+            "error": "Unable to create customer"
         }), 500
 
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000))
-    )
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
