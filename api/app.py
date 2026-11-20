@@ -11,6 +11,7 @@ app = Flask(__name__)
 CORS(app)
 
 
+
 def get_active_fault():
     """Read the fault injected through App Service settings."""
 
@@ -27,10 +28,20 @@ def get_active_fault():
         app.logger.error("Invalid IGAI_FAULT_PARAMETERS setting")
         return None
 
+    fault_id = os.environ.get("IGAI_FAULT_ID", "unknown")
+
+    app.logger.info(
+        "IGAI fault active: fault_id=%s operation=%s",
+        fault_id,
+        operation,
+    )
+
     return {
+        "fault_id": fault_id,
         "operation": operation,
         "parameters": parameters,
     }
+
 
 
 # Startup failure is deliberately checked during application startup.
